@@ -13,7 +13,9 @@
   ],
   "scripts": {
     "test": "tape test.js | tap-spec && standard",
-    "ci": "tape test.js && node testRandom && standard"
+    "ci": "tape test.js && node testRandom && standard",
+    "cov": "nyc npm test",
+    "cov-html": "nyc --reporter=lcov --temp-dir=coverage/.nyc_output npm test"
   },
   "pre-commit": "test",
   "repository": {
@@ -34,6 +36,7 @@
   },
   "homepage": "https://github.com/mqttjs/mqtt-packet",
   "devDependencies": {
+    "nyc": "^15.1.0",
     "pre-commit": "^1.2.2",
     "readable-stream": "^3.6.0",
     "standard": "^14.3.4",
