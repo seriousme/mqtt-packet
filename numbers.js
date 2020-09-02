@@ -41,7 +41,7 @@ function genBufVariableByteInt (num) {
     if (num > 0) digit = digit | 0x80
 
     buffer.writeUInt8(digit, pos++)
-  } while (num > 0)
+  } while (num > 0 && pos < length)
 
   return {
     data: buffer,
