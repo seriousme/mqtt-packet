@@ -2355,10 +2355,20 @@ testWriteToStreamError('Invalid topic', {
   topic: {}
 }, {}, 'Invalid topic: object')
 
-testWriteToStreamError('Invalid messageId', {
-  cmd: 'subscribe',
-  mid: {}
-})
+testGenerateErrorMultipleCmds([
+  'publish',
+  'puback',
+  'pubrec',
+  'pubrel',
+  'subscribe',
+  'suback',
+  'unsubscribe',
+  'unsuback'
+], 'Invalid messageId', {
+  qos: 1, // required for publish
+  topic: 'test', // required for publish
+  messageId: 'a'
+}, {})
 
 test('userProperties null prototype', t => {
   t.plan(3)
