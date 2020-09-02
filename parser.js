@@ -72,6 +72,8 @@ class Parser extends EventEmitter {
     if (result) {
       this.packet.length = result.value
       this._list.consume(result.bytes)
+    } else {
+      this._emitError(new Error('Invalid length'))
     }
     debug('_parseLength %d', result.value)
     return !!result
@@ -244,7 +246,7 @@ class Parser extends EventEmitter {
     debug('_parseConnack')
     const packet = this.packet
 
-    if (this._list.length < 2) return null
+    if (this._list.length < 2) return this._emitError(new Error('Packet too short'))
 
     packet.sessionPresent = !!(this._list.readUInt8(this._pos++) & constants.SESSIONPRESENT_MASK)
     if (this.settings.protocolVersion === 5) {
@@ -253,6 +255,7 @@ class Parser extends EventEmitter {
       packet.returnCode = this._list.readUInt8(this._pos++)
     }
 
+    /* istanbul ignore next : previous readUint8 always succeeds as we already checked that there were 2 bytes in queue */
     if (packet.returnCode === -1 || packet.reasonCode === -1) return this._emitError(new Error('Cannot parse return code'))
     // mqtt 5 properties
     if (this.settings.protocolVersion === 5) {
@@ -392,7 +395,7 @@ class Parser extends EventEmitter {
   _parseUnsuback () {
     debug('_parseUnsuback')
     const packet = this.packet
-    if (!this._parseMessageId()) return this._emitError(new Error('Cannot parse messageId'))
+    if (!this._parseMessageId()) return false
     // Properties mqtt 5
     if (this.settings.protocolVersion === 5) {
       const properties = this._parseProperties()
@@ -412,7 +415,7 @@ class Parser extends EventEmitter {
     debug('_parseConfirmation: packet.cmd: `%s`', this.packet.cmd)
     const packet = this.packet
 
-    this._parseMessageId()
+    if (!this._parseMessageId()) return false
 
     if (this.settings.protocolVersion === 5) {
       if (packet.length > 2) {
@@ -478,7 +481,7 @@ class Parser extends EventEmitter {
 
     packet.messageId = this._parseNum()
 
-    if (packet.messageId === null) {
+    if (packet.messageId === -1) {
       this._emitError(new Error('Cannot parse messageId'))
       return false
     }
@@ -543,7 +546,7 @@ class Parser extends EventEmitter {
     let bytes = 0
     let mul = 1
     let length = 0
-    let result = true
+    let result = false
     let current
     const padding = this._pos ? this._pos : 0
 
@@ -552,9 +555,11 @@ class Parser extends EventEmitter {
       length += mul * (current & constants.LENGTH_MASK)
       mul *= 0x80
 
-      if ((current & constants.LENGTH_FIN_MASK) === 0) break
+      if ((current & constants.LENGTH_FIN_MASK) === 0) {
+        result = true
+        break
+      }
       if (this._list.length <= bytes) {
-        result = false
         break
       }
     }
@@ -614,6 +619,10 @@ class Parser extends EventEmitter {
   _parseProperties () {
     debug('_parseProperties')
     const length = this._parseVarByteNum()
+    if (length === false) {
+      this._emitError(new Error('Invalid length'))
+      return false
+    }
     const start = this._pos
     const end = start + length
     const result = {}
