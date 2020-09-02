@@ -67,6 +67,7 @@ Object.defineProperty(generate, 'cacheNumbers', {
   },
   set (value) {
     if (value) {
+      /* istanbul ignore else : else path can't be tested */
       if (!numCache || Object.keys(numCache).length === 0) toGenerate = true
       writeNumber = writeNumberCached
     } else {
@@ -81,7 +82,7 @@ function uncork (stream) {
 }
 
 function connect (packet, stream, opts) {
-  const settings = packet || {}
+  const settings = packet || /* istanbul ignore next : this never happens */ {}
   const protocolId = settings.protocolId || 'MQTT'
   const protocolVersion = settings.protocolVersion || 4
   const will = settings.will
@@ -90,7 +91,7 @@ function connect (packet, stream, opts) {
   const clientId = settings.clientId || ''
   const username = settings.username
   const password = settings.password
-  /* mqtt5 new oprions */
+  /* mqtt 5 new options */
   const properties = settings.properties
 
   if (clean === undefined) clean = true
@@ -102,7 +103,7 @@ function connect (packet, stream, opts) {
      (typeof protocolId !== 'string' && !Buffer.isBuffer(protocolId))) {
     stream.emit('error', new Error('Invalid protocolId'))
     return false
-  } else length += protocolId.length + 2
+  } else length += Buffer.byteLength(protocolId) + 2
 
   // Must be 3 or 4 or 5
   if (protocolVersion !== 3 && protocolVersion !== 4 && protocolVersion !== 5) {
@@ -111,15 +112,16 @@ function connect (packet, stream, opts) {
   } else length += 1
 
   // ClientId might be omitted in 3.1.1, but only if cleanSession is set to 1
-  if ((typeof clientId === 'string' || Buffer.isBuffer(clientId)) &&
-     (clientId || protocolVersion === 4) && (clientId || clean)) {
-    length += clientId.length + 2
+  if (isStringOrBuffer(clientId) && Buffer.byteLength(clientId)) {
+    length += Buffer.byteLength(clientId) + 2
   } else {
     if (protocolVersion < 4) {
       stream.emit('error', new Error('clientId must be supplied before 3.1.1'))
       return false
     }
-    if ((clean * 1) === 0) {
+    if (protocolVersion === 4 && clean) {
+      length += 2
+    } else {
       stream.emit('error', new Error('clientId must be given if cleanSession set to 0'))
       return false
     }
@@ -270,7 +272,7 @@ function connect (packet, stream, opts) {
 
 function connack (packet, stream, opts) {
   const version = opts ? opts.protocolVersion : 4
-  const settings = packet || {}
+  const settings = packet || /* istanbul ignore next : this never happens */ {}
   const rc = version === 5 ? settings.reasonCode : settings.returnCode
   const properties = settings.properties
   let length = 2 // length of rc and sessionHeader
@@ -303,7 +305,7 @@ function connack (packet, stream, opts) {
 function publish (packet, stream, opts) {
   debug('publish: packet: %o', packet)
   const version = opts ? opts.protocolVersion : 4
-  const settings = packet || {}
+  const settings = packet || /* istanbul ignore next : this never happens */ {}
   const qos = settings.qos || 0
   const retain = settings.retain ? protocol.RETAIN_MASK : 0
   const topic = settings.topic
@@ -314,16 +316,15 @@ function publish (packet, stream, opts) {
   let length = 0
 
   // Topic must be a non-empty string or Buffer
-  if (typeof topic === 'string') length += Buffer.byteLength(topic) + 2
-  else if (Buffer.isBuffer(topic)) length += topic.length + 2
-  else {
+  if (isStringOrBuffer(topic) && Buffer.byteLength(topic) > 0) {
+    length += Buffer.byteLength(topic) + 2
+  } else {
     stream.emit('error', new Error('Invalid topic'))
     return false
   }
 
   // Get the payload length
-  if (!Buffer.isBuffer(payload)) length += Buffer.byteLength(payload)
-  else length += payload.length
+  length += Buffer.byteLength(payload)
 
   // Message ID must a number if qos > 0
   if (qos && typeof id !== 'number') {
@@ -365,10 +366,10 @@ function publish (packet, stream, opts) {
 /* Puback, pubrec, pubrel and pubcomp */
 function confirmation (packet, stream, opts) {
   const version = opts ? opts.protocolVersion : 4
-  const settings = packet || {}
-  const type = settings.cmd || 'puback'
+  const settings = packet || /* istanbul ignore next : this never happens */ {}
+  const type = settings.cmd || /* istanbul ignore next : this never happens */ 'puback'
   const id = settings.messageId
-  const dup = (settings.dup && type === 'pubrel') ? protocol.DUP_MASK : 0
+  const dup = (settings.dup && type === 'pubrel') ? 1 : 0
   let qos = 0
   const reasonCode = settings.reasonCode
   const properties = settings.properties
@@ -417,8 +418,8 @@ function confirmation (packet, stream, opts) {
 function subscribe (packet, stream, opts) {
   debug('subscribe: packet: ')
   const version = opts ? opts.protocolVersion : 4
-  const settings = packet || {}
-  const dup = settings.dup ? protocol.DUP_MASK : 0
+  const settings = packet || /* istanbul ignore next : this never happens */ {}
+  const dup = settings.dup ? 1 : 0
   const id = settings.messageId
   const subs = settings.subscriptions
   const properties = settings.properties
@@ -481,7 +482,7 @@ function subscribe (packet, stream, opts) {
 
   // Generate header
   debug('subscribe: writing to stream: %o', protocol.SUBSCRIBE_HEADER)
-  stream.write(protocol.SUBSCRIBE_HEADER[1][dup ? 1 : 0][0])
+  stream.write(protocol.SUBSCRIBE_HEADER[1][dup][0])
 
   // Generate length
   writeVarByteInt(stream, length)
@@ -524,7 +525,7 @@ function subscribe (packet, stream, opts) {
 
 function suback (packet, stream, opts) {
   const version = opts ? opts.protocolVersion : 4
-  const settings = packet || {}
+  const settings = packet || /* istanbul ignore next : this never happens */ {}
   const id = settings.messageId
   const granted = settings.granted
   const properties = settings.properties
@@ -577,9 +578,9 @@ function suback (packet, stream, opts) {
 
 function unsubscribe (packet, stream, opts) {
   const version = opts ? opts.protocolVersion : 4
-  const settings = packet || {}
+  const settings = packet || /* istanbul ignore next : this never happens */ {}
   const id = settings.messageId
-  const dup = settings.dup ? protocol.DUP_MASK : 0
+  const dup = settings.dup ? 1 : 0
   const unsubs = settings.unsubscriptions
   const properties = settings.properties
 
@@ -614,7 +615,7 @@ function unsubscribe (packet, stream, opts) {
   }
 
   // Header
-  stream.write(protocol.UNSUBSCRIBE_HEADER[1][dup ? 1 : 0][0])
+  stream.write(protocol.UNSUBSCRIBE_HEADER[1][dup][0])
 
   // Length
   writeVarByteInt(stream, length)
@@ -638,9 +639,9 @@ function unsubscribe (packet, stream, opts) {
 
 function unsuback (packet, stream, opts) {
   const version = opts ? opts.protocolVersion : 4
-  const settings = packet || {}
+  const settings = packet || /* istanbul ignore next : this never happens */ {}
   const id = settings.messageId
-  const dup = settings.dup ? protocol.DUP_MASK : 0
+  const dup = settings.dup ? 1 : 0
   const granted = settings.granted
   const properties = settings.properties
   const type = settings.cmd
@@ -705,7 +706,7 @@ function emptyPacket (packet, stream, opts) {
 
 function disconnect (packet, stream, opts) {
   const version = opts ? opts.protocolVersion : 4
-  const settings = packet || {}
+  const settings = packet || /* istanbul ignore next : this never happens */ {}
   const reasonCode = settings.reasonCode
   const properties = settings.properties
   let length = version === 5 ? 1 : 0
@@ -739,7 +740,7 @@ function disconnect (packet, stream, opts) {
 
 function auth (packet, stream, opts) {
   const version = opts ? opts.protocolVersion : 4
-  const settings = packet || {}
+  const settings = packet || /* istanbul ignore next : this never happens */ {}
   const reasonCode = settings.reasonCode
   const properties = settings.properties
   let length = version === 5 ? 1 : 0
@@ -922,7 +923,8 @@ function getProperties (stream, properties) {
         break
       }
       case 'var': {
-        if (typeof value !== 'number' || value < 0 || value > 0xffffffff) {
+        // VarByteInteger encodes a maximum of 24 bits in maximum 4 bytes
+        if (typeof value !== 'number' || value < 0 || value > 0x0fffffff) {
           stream.emit('error', new Error(`Invalid ${name}: ${value}`))
           return false
         }
