@@ -41,6 +41,7 @@
     "tape": "^5.7.2"
   },
   "dependencies": {
+    "@seriousme/opifex": "^1.9.4",
     "bl": "^6.0.8",
     "debug": "^4.3.4",
     "process-nextick-args": "^2.0.1"
