@@ -4,6 +4,7 @@
 const mqttPacket = require('../')
 const mqttPubPacket = require('./raw/pubPacket.js')
 const mqttPubPacketBuf = require('./raw/pubPacketBuffer.js')
+const mqttPubPacketInto = require('./raw/pubPacketInto.js')
 const mqttOpifex = require('@seriousme/opifex/mqttPacket')
 const max = 1000000
 const PUBLISH = 3
@@ -56,17 +57,22 @@ function testOpifex (mqtt) {
 }
 
 console.log(
-  'Round | mqtt time | mqtt packets/s | opifex time | opifex packets/s | pubPacket time | pubPacket packets/s | pubPacketBuf time | pubPacketBuf packets/s'
+  'Round | mqtt time | mqtt packets/s | opifex time | opifex packets/s | pubPacket time | pubPacket packets/s | pubPacketInto time | pubPacketInto packets/s | pubPacketBuf time | pubPacketBuf packets/s '
 )
-console.log('-- | -- | -- | -- | -- | -- | -- | -- | --')
+console.log('-- | -- | -- | -- | -- | -- | -- | -- | -- | -- | --')
 for (let j = 0; j < 10; j++) {
   const mqttResult = testMQTT(mqttPacket)
   const opifexResult = testOpifex(mqttOpifex)
   const pubPacketResult = testMQTT(mqttPubPacket)
+  const pubPacketIntoResult = testMQTT(mqttPubPacketInto)
   const pubPacketBufResult = testMQTT(mqttPubPacketBuf)
   console.log(
     `${
       j + 1
-    } | ${mqttResult.time} | ${mqttResult.packetsPerSecond} | ${opifexResult.time} | ${opifexResult.packetsPerSecond} | ${pubPacketResult.time} | ${pubPacketResult.packetsPerSecond} | ${pubPacketBufResult.time} | ${pubPacketBufResult.packetsPerSecond}`
+    } | ${mqttResult.time} | ${mqttResult.packetsPerSecond} | ${
+        opifexResult.time} | ${opifexResult.packetsPerSecond} | ${
+        pubPacketResult.time} | ${pubPacketResult.packetsPerSecond} | ${
+        pubPacketIntoResult.time} | ${pubPacketIntoResult.packetsPerSecond} | ${
+        pubPacketBufResult.time} | ${pubPacketBufResult.packetsPerSecond}`
   )
 }
